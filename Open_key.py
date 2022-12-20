@@ -10,6 +10,20 @@ def des_numder(ch):
         number += int(ch[i]) * (2 ** (len_dat - i - 1))
     return number
 
+def power(x, n, modul):
+    step = n
+    vnesh_ch = 1
+    while step != 1:
+        if step % 2 ==1:
+            vnesh_ch = vnesh_ch * x
+            vnesh_ch = vnesh_ch % modul
+            step = step - 1
+        x **=2
+        x %= modul
+        step //=2
+    final_vers = vnesh_ch * x % modul
+    return final_vers
+
 def prime_number(number):
     counter = 0
     for i in range(2,number-1):
@@ -60,20 +74,21 @@ def generation_key(p, q):
             print('Числа не являются простыми, измените значения p и q')
 
 def encryption(e_z, n, place):
-    with open(place, 'r') as file:
+    with open(place, 'rb') as file:
         message = file.read()
+    print('Message - ', message)
     text = ''
-    for i in range(len(message)):
-        sym = ord(message[i])
-        f_sym = str(bin(sym))
-        f_sym = f_sym.replace('b','')
-        text += f_sym
+    message = bytes.hex(message)
+    message = int(message, 16)
+    message = bin(message)[2:]
     len_block = math.floor(math.log2(n))
-    zero = len(text) % len_block
+    zero = len(message) % len_block
+    text = message
     text = '0' * (len_block - zero) + text
     bi_blocks = []
-    for i in range(len(text)//len_block):
-        bi_blocks.append(text[i*len_block:len_block+i*len_block])
+    for i in range(len(text) // len_block):
+        bi_blocks.append(text[i * len_block:len_block + i * len_block])
+    #print(bi_blocks)
     len_block_2 = len_block + 1
     bi_blocks_ascii = []
     text_new = ''
@@ -83,28 +98,30 @@ def encryption(e_z, n, place):
         i = i % n
         i = bin(i)
         i = str(i)
-        i = i.replace('b','')
+        i = i.replace('b', '')
         if len(i) < len_block_2:
             zero = len(i) % len_block_2
             i = '0' * (len_block_2 - zero) + i
         text_new += i
-    # print(text_new)
+    print('Text new - ', text_new)
     text_new = int(text_new, 2)
     if len(hex(text_new)) % 2 != 0:
         text_new = '0' + hex(text_new)[2:]
     else:
         text_new = hex(text_new)[2:]
     bitici_text = bytes.fromhex(text_new)
-    # print(bitici_text)
+    print('Bitici  - ',bitici_text)
     print('Куда сохранить шифртекст?')
     name_for_ciphertext = input()
     with open(name_for_ciphertext, 'wb') as file:
         file.write(bitici_text)
     print('---Проверьте файл в директории!---')
 
+
 def decryption(d, n, place):
     with open(place, 'rb') as file:
         message = file.read()
+    # print(message)
     text = ''
     text = bytes.hex(message)
     text_new = int(text, 16)
@@ -116,17 +133,24 @@ def decryption(d, n, place):
     text_sec = ''
     for i in range(len(text_new)//len_block):
         blocks.append(text_new[i*len_block:len_block+i*len_block])
-        blocks[i] = (int(blocks[i], 2)**d) % n
+        blocks[i] = power(int(blocks[i], 2), d, n)
+        print('Hello - hui')
+        # blocks[i] = (int(blocks[i], 2)**d) % n
         blocks[i] = bin(blocks[i]).replace('0b', '')
         len_block_z = math.floor(math.log2(n))
         zero = len(blocks[i]) % len_block_z
         if zero != 0:
             blocks[i] = '0' * (len_block_z - zero) + blocks[i]
         text_sec += str(blocks[i])
+    print('Blocks -- ', blocks)
+    print('Len - ', len(blocks))
+    print('2   ', text_sec)
     text_sec = hex(int(text_sec, 2))[2:]
+    print(text_sec)
     if len(text_sec) % 2 != 0:
         text_sec = '0' + text_sec
     text_sec = bytes.fromhex(text_sec)
+    print('1  ', text_sec)
     print('Куда сохранить открытый текст?')
     name_for_opentext = input()
     with open(name_for_opentext, 'wb') as file:
@@ -137,6 +161,53 @@ def random_key(dlin):
     key_len = random.getrandbits(dlin)
     key_len |= (1 << dlin - 1) | 1
     return key_len
+
+def generation_key_random():
+    p,q,e = generation_random_pub()
+    func_evclid = (p-1)*(q-1)
+    n = p*q
+    d = generation_random_priv(n, func_evclid, e)
+    print('Получившийся открытый ключ (e, n) - ', e, n)
+    print('Получившийся закрытый ключ (d, n) - ', d, n)
+
+    test_correctness = power(power(111111, e, n), d, n)
+    if test_correctness != 111111:
+        print('Ключ неверный, операция выполняется повторно.')
+        generation_key_random()
+    return 0
+def generation_random_pub():
+    p,q  = prime()
+    e = 47
+    func_evclid = (p-1)*(q-1)
+    while not math.gcd(func_evclid, e) == 1:
+        p,q = prime()
+        e = 47
+        func_evclid = (p-1)*(q-1)
+    return p,q,e
+
+def generation_random_priv(n, func_evclid, e):
+    evc = evklid(func_evclid, e)
+    d = evc + n * (evc<0)
+    return d
+
+def prime():
+    p,q = generation_prime(), generation_prime()
+    return p,q
+
+def prime_or_not(n, k=128):
+    for i in range(k):
+        test_var = random.randint(2, n - 1)
+        result = power(test_var, n-1, n)
+        if result != 1:
+            return False
+    return True
+
+def generation_prime(len = 1024):
+    just_ch = 6
+    while not prime_or_not(just_ch, 128):
+        just_ch = random_key(len)
+    return just_ch
+
 
 
 
@@ -151,20 +222,17 @@ if choice == 1:
     print('Введите значения p и q')
     p = int(input())
     q = int(input())
-
+    generation_key(p, q)
 if choice == 2:
     print('Введите длину значений p и q в битах: ')
-    len_p = int(input())
-    p = random_key(len_p)
-    len_q = int(input())
-    q = random_key(len_q)
+    generation_key_random()
 
 
 print('Введите путь (название) файла: txt')
 place_2 = input()
 place = place + place_2
 print(place)
-generation_key(p, q)
+
 print('Выберите необходимое действие: ')
 print('1. Зашифрование')
 print('2. Расшифрование')
